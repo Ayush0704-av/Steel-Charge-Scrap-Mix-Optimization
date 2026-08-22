@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Steel Charge & Scrap Mix Optimization Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#1b1e22;
+    --panel:#24282d;
+    --panel-2:#2c3137;
+    --line:#3a4048;
+    --text:#e9e7e1;
+    --muted:#8f9aa3;
+    --steel:#5b9bd5;
+    --molten:#e8672c;
+    --molten-dim:#b8501f;
+    --good:#5cb894;
+    --warn:#e8672c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top left, rgba(232,103,44,0.06), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:28px 24px 60px;}
+
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;margin-bottom:22px;
+    flex-wrap:wrap;gap:14px;
+  }
+  .title-block .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--molten);margin-bottom:6px;
+  }
+  h1{
+    font-family:'Oswald',sans-serif;font-weight:600;
+    font-size:30px;margin:0;letter-spacing:.01em;
+    text-transform:uppercase;
+  }
+  .subtitle{color:var(--muted);font-size:13.5px;margin-top:4px;}
+  .tools{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);text-align:right;}
+
+  nav{display:flex;gap:2px;margin-bottom:24px;background:var(--panel);border-radius:8px;padding:4px;width:fit-content;}
+  nav button{
+    font-family:'Oswald',sans-serif;
+    font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+    background:none;border:none;color:var(--muted);
+    padding:10px 20px;border-radius:6px;cursor:pointer;
+    transition:all .15s ease;
+  }
+  nav button.active{background:var(--molten);color:#1b1e22;font-weight:600;}
+  nav button:not(.active):hover{color:var(--text);background:var(--panel-2);}
+
+  .page{display:none;}
+  .page.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .kpi{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;position:relative;overflow:hidden;
+  }
+  .kpi::before{
+    content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--steel);
+  }
+  .kpi.molten::before{background:var(--molten);}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;}
+  .kpi .value{font-family:'Oswald',sans-serif;font-size:26px;font-weight:600;margin-top:6px;}
+  .kpi .delta{font-size:12px;margin-top:4px;color:var(--good);font-family:'IBM Plex Mono',monospace;}
+  .kpi .delta.up{color:var(--molten);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:18px 20px;
+  }
+  .panel h3{
+    font-family:'Oswald',sans-serif;font-weight:500;font-size:14px;
+    text-transform:uppercase;letter-spacing:.05em;margin:0 0 4px;color:var(--text);
+  }
+  .panel .desc{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .chart-box{position:relative;height:260px;}
+  .chart-box.tall{height:340px;}
+
+  table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  th{
+    text-align:left;color:var(--muted);text-transform:uppercase;font-size:10.5px;
+    letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);
+  }
+  td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  .tag{
+    display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;
+    font-family:'IBM Plex Mono',monospace;letter-spacing:.03em;
+  }
+  .tag.opt{background:rgba(92,184,148,0.15);color:var(--good);}
+
+  .slicer{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+  .slicer button{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    padding:7px 14px;border-radius:6px;cursor:pointer;transition:.15s;
+  }
+  .slicer button.active{background:var(--steel);border-color:var(--steel);color:#12161a;font-weight:600;}
+  .slicer button:hover:not(.active){color:var(--text);border-color:var(--steel);}
+
+  .callout{
+    background:linear-gradient(135deg, rgba(232,103,44,0.12), rgba(232,103,44,0.03));
+    border:1px solid var(--molten-dim);border-radius:10px;
+    padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;
+  }
+  .callout .big{font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--molten);}
+  .callout .txt{font-size:13px;color:var(--text);line-height:1.5;}
+  .callout .txt b{color:var(--molten);}
+
+  .insight{
+    font-size:12.5px;color:var(--muted);line-height:1.6;
+    border-left:2px solid var(--steel);padding:4px 0 4px 14px;margin-top:12px;
+  }
+  .insight b{color:var(--text);}
+
+  footer{margin-top:30px;text-align:center;color:var(--muted);font-size:11px;font-family:'IBM Plex Mono',monospace;}
+
+  @media(max-width:800px){
+    .kpi-row{grid-template-columns:1fr 1fr;}
+    .grid-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <div class="eyebrow">Production Planning · LP Optimization</div>
+      <h1>Steel Charge &amp; Scrap Mix Optimization</h1>
+      <div class="subtitle">Lowest-cost scrap charge mix under alloy composition, furnace capacity &amp; impurity constraints</div>
+    </div>
+    <div class="tools">Python (PuLP) · Excel · Power BI<br>Furnace capacity: 100 t / heat</div>
+  </header>
+
+  <nav>
+    <button class="tab-btn active" data-page="p1">01 · Executive Summary</button>
+    <button class="tab-btn" data-page="p2">02 · Charge Mix &amp; Trade-off</button>
+    <button class="tab-btn" data-page="p3">03 · Sensitivity &amp; Cost Drivers</button>
+  </nav>
+
+  <!-- PAGE 1 -->
+  <div class="page active" id="p1">
+    <div class="kpi-row">
+      <div class="kpi molten">
+        <div class="label">Baseline Cost</div>
+        <div class="value">₹18,910</div>
+        <div class="delta">80.0 t charge</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Cheapest Scenario</div>
+        <div class="value">₹11,819</div>
+        <div class="delta">Small_Heat · 50.0 t</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Most Expensive</div>
+        <div class="value">₹21,292</div>
+        <div class="delta up">Tight_Impurity · 80.0 t</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Impurity Spec Premium</div>
+        <div class="value">+12.6%</div>
+        <div class="delta up">vs. Baseline cost</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Total Cost by Scenario</h3>
+        <div class="desc">₹ per heat, across 4 planning scenarios</div>
+        <div class="chart-box"><canvas id="costChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Total Charge Weight by Scenario</h3>
+        <div class="desc">Tons of scrap charged per heat</div>
+        <div class="chart-box"><canvas id="tonsChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Scenario Status</h3>
+      <div class="desc">All four scenarios solved to LP optimality</div>
+      <table>
+        <thead><tr><th>Scenario</th><th>Status</th><th>Total Cost</th><th>Total Tons</th><th>₹ / Ton</th></tr></thead>
+        <tbody id="statusTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 2 -->
+  <div class="page" id="p2">
+    <div class="callout">
+      <div class="big">+12.6%</div>
+      <div class="txt">Tightening the Cu spec from 0.25% → 0.21% and P from 0.030% → 0.028% raises heat cost from <b>₹18,910</b> to <b>₹21,292</b> — the model swaps cheap Turnings for cleaner HMS2, proving impurity control has a real, quantifiable price.</div>
+    </div>
+
+    <div class="slicer" id="scenarioSlicer">
+      <button class="active" data-s="Baseline">Baseline</button>
+      <button data-s="High_Recycled">High_Recycled</button>
+      <button data-s="Tight_Impurity">Tight_Impurity</button>
+      <button data-s="Small_Heat">Small_Heat</button>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Charge Mix — <span id="mixTitle">Baseline</span></h3>
+        <div class="desc">Scrap grade composition of the optimal charge</div>
+        <div class="chart-box"><canvas id="mixChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Cost Contribution by Grade</h3>
+        <div class="desc">Share of total heat cost per scrap grade</div>
+        <div class="chart-box"><canvas id="costShareChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Charge Detail</h3>
+      <div class="desc">Line-level tons and cost for the selected scenario</div>
+      <table>
+        <thead><tr><th>Scrap Grade</th><th>Tons Used</th><th>₹/Ton</th><th>Line Cost</th></tr></thead>
+        <tbody id="detailTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE 3 -->
+  <div class="page" id="p3">
+    <div class="panel" style="margin-bottom:16px;">
+      <h3>Shadow Price by Constraint</h3>
+      <div class="desc">Baseline scenario · dual values (₹ cost impact per unit relaxation) — binding constraints only</div>
+      <div class="chart-box tall"><canvas id="shadowChart"></canvas></div>
+      <div class="insight">
+        <b>Mn_min</b> and <b>Cu_max</b> are the dominant cost drivers in the baseline mix — Manganese's lower bound (0.30%) forces use of pricier Mn-bearing scrap, while Copper's upper bound (0.25%) is a hard ceiling because Cu can't be refined out, only diluted with cleaner grades. <b>C_max</b> and <b>Min_Charge</b> are secondary levers. All other element bounds carry slack and don't influence cost.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Full Constraint Table</h3>
+      <div class="desc">Shadow price = 0 means the constraint has slack (non-binding)</div>
+      <table>
+        <thead><tr><th>Constraint</th><th>Shadow Price</th><th>Slack</th><th>Binding?</th></tr></thead>
+        <tbody id="sensTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Steel Charge &amp; Scrap Mix Optimization · PuLP Linear Program · 4-scenario comparison · Generated from live solver output</footer>
+</div>
+
+<script>
+Chart.defaults.color = '#8f9aa3';
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 11;
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+
+const STEEL = '#5b9bd5', MOLTEN = '#e8672c', GOOD='#5cb894';
+const gradeColors = ['#5b9bd5','#e8672c','#5cb894','#c9a24b','#9b7ede','#e05a7e','#4dc9c4','#8f9aa3'];
+
+// ---------- DATA (from scenario_summary.csv / scenario_results_detail.csv / sensitivity_analysis.csv) ----------
+const summary = [
+  {scenario:"Baseline", status:"Optimal", total_cost:18910.27, total_tons:80.0},
+  {scenario:"High_Recycled", status:"Optimal", total_cost:18910.27, total_tons:80.0},
+  {scenario:"Tight_Impurity", status:"Optimal", total_cost:21291.53, total_tons:80.0},
+  {scenario:"Small_Heat", status:"Optimal", total_cost:11818.92, total_tons:50.0},
+];
+
+const detail = {
+  Baseline: [
+    {grade:"HMS1", tons:31.88, cpt:285, line:9084.51},
+    {grade:"HMS2", tons:9.71, cpt:255, line:2475.64},
+    {grade:"Turnings", tons:36.71, cpt:190, line:6975.71},
+    {grade:"Cast_Iron_Scrap", tons:1.70, cpt:220, line:374.41},
+  ],
+  High_Recycled: [
+    {grade:"HMS1", tons:31.88, cpt:285, line:9084.51},
+    {grade:"HMS2", tons:9.71, cpt:255, line:2475.64},
+    {grade:"Turnings", tons:36.71, cpt:190, line:6975.71},
+    {grade:"Cast_Iron_Scrap", tons:1.70, cpt:220, line:374.41},
+  ],
+  Tight_Impurity: [
+    {grade:"HMS1", tons:30.96, cpt:285, line:8822.58},
+    {grade:"HMS2", tons:46.70, cpt:255, line:11908.27},
+    {grade:"Pig_Iron", tons:0.22, cpt:420, line:94.29},
+    {grade:"Cast_Iron_Scrap", tons:2.12, cpt:220, line:466.40},
+  ],
+  Small_Heat: [
+    {grade:"HMS1", tons:19.92, cpt:285, line:5677.82},
+    {grade:"HMS2", tons:6.07, cpt:255, line:1547.27},
+    {grade:"Turnings", tons:22.95, cpt:190, line:4359.82},
+    {grade:"Cast_Iron_Scrap", tons:1.06, cpt:220, line:234.01},
+  ],
+};
+
+const sensitivity = [
+  {c:"Max_Capacity", sp:0, slack:20.0},
+  {c:"Min_Charge", sp:236.38, slack:0},
+  {c:"C_min", sp:0, slack:-0.08},
+  {c:"C_max", sp:-15730.73, slack:0},
+  {c:"Mn_min", sp:217125.28, slack:0},
+  {c:"Mn_max", sp:0, slack:0.24},
+  {c:"Si_min", sp:0, slack:-0.0497},
+  {c:"Si_max", sp:0, slack:0.1103},
+  {c:"Cu_min", sp:0, slack:-0.20},
+  {c:"Cu_max", sp:-74208.26, slack:0},
+  {c:"Cr_min", sp:0, slack:-0.0178},
+  {c:"Cr_max", sp:0, slack:0.1022},
+  {c:"Ni_min", sp:0, slack:-0.0110},
+  {c:"Ni_max", sp:0, slack:0.0690},
+  {c:"S_min", sp:0, slack:-0.0206},
+  {c:"S_max", sp:0, slack:0.0074},
+  {c:"P_min", sp:0, slack:-0.0177},
+  {c:"P_max", sp:0, slack:0.0063},
+];
+
+// ---------- NAV ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.page).classList.add('active');
+  });
+});
+
+// ---------- PAGE 1 ----------
+new Chart(document.getElementById('costChart'), {
+  type:'bar',
+  data:{
+    labels: summary.map(s=>s.scenario),
+    datasets:[{
+      data: summary.map(s=>s.total_cost),
+      backgroundColor: summary.map(s=> s.scenario==="Tight_Impurity" ? MOLTEN : STEEL),
+      borderRadius:4, maxBarThickness:46
+    }]
+  },
+  options:{
+    plugins:{legend:{display:false}},
+    scales:{ y:{ grid:{color:'rgba(255,255,255,0.05)'}, ticks:{callback:v=>'₹'+v.toLocaleString()} }, x:{grid:{display:false}} }
+  }
+});
+
+new Chart(document.getElementById('tonsChart'), {
+  type:'bar',
+  data:{
+    labels: summary.map(s=>s.scenario),
+    datasets:[{
+      data: summary.map(s=>s.total_tons),
+      backgroundColor: GOOD, borderRadius:4, maxBarThickness:46
+    }]
+  },
+  options:{
+    plugins:{legend:{display:false}},
+    scales:{ y:{ grid:{color:'rgba(255,255,255,0.05)'} }, x:{grid:{display:false}} }
+  }
+});
+
+const statusTable = document.getElementById('statusTable');
+summary.forEach(s=>{
+  statusTable.innerHTML += `<tr>
+    <td>${s.scenario}</td>
+    <td><span class="tag opt">${s.status}</span></td>
+    <td>₹${s.total_cost.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+    <td>${s.total_tons.toFixed(1)} t</td>
+    <td>₹${(s.total_cost/s.total_tons).toFixed(2)}</td>
+  </tr>`;
+});
+
+// ---------- PAGE 2 ----------
+let mixChart, costShareChart;
+
+function renderMix(scenario){
+  document.getElementById('mixTitle').textContent = scenario;
+  const rows = detail[scenario];
+
+  if(mixChart) mixChart.destroy();
+  mixChart = new Chart(document.getElementById('mixChart'), {
+    type:'bar',
+    data:{
+      labels:['Charge'],
+      datasets: rows.map((r,i)=>({
+        label:r.grade, data:[r.tons],
+        backgroundColor: gradeColors[i%gradeColors.length],
+        borderRadius:3
+      }))
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{ legend:{position:'bottom', labels:{boxWidth:10,padding:12}} },
+      scales:{ x:{stacked:true, grid:{color:'rgba(255,255,255,0.05)'}}, y:{stacked:true, grid:{display:false}} }
+    }
+  });
+
+  if(costShareChart) costShareChart.destroy();
+  costShareChart = new Chart(document.getElementById('costShareChart'), {
+    type:'doughnut',
+    data:{
+      labels: rows.map(r=>r.grade),
+      datasets:[{ data: rows.map(r=>r.line), backgroundColor: gradeColors, borderColor:'#24282d', borderWidth:2 }]
+    },
+    options:{ plugins:{ legend:{position:'bottom', labels:{boxWidth:10,padding:12}} }, cutout:'62%' }
+  });
+
+  const detailTable = document.getElementById('detailTable');
+  detailTable.innerHTML = '';
+  rows.forEach(r=>{
+    detailTable.innerHTML += `<tr>
+      <td>${r.grade}</td><td>${r.tons.toFixed(2)} t</td><td>₹${r.cpt}</td><td>₹${r.line.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+    </tr>`;
+  });
+}
+
+document.querySelectorAll('#scenarioSlicer button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#scenarioSlicer button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderMix(btn.dataset.s);
+  });
+});
+renderMix('Baseline');
+
+// ---------- PAGE 3 ----------
+const binding = sensitivity.filter(s=>s.sp !== 0).sort((a,b)=>a.sp-b.sp);
+new Chart(document.getElementById('shadowChart'), {
+  type:'bar',
+  data:{
+    labels: binding.map(s=>s.c),
+    datasets:[{
+      data: binding.map(s=>s.sp),
+      backgroundColor: binding.map(s=>s.sp<0? MOLTEN : STEEL),
+      borderRadius:4
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{color:'rgba(255,255,255,0.05)'}, ticks:{callback:v=>'₹'+v.toLocaleString()}}, y:{grid:{display:false}} }
+  }
+});
+
+const sensTable = document.getElementById('sensTable');
+sensitivity.forEach(s=>{
+  const bindingFlag = s.sp !== 0;
+  sensTable.innerHTML += `<tr>
+    <td>${s.c}</td>
+    <td style="color:${bindingFlag?'#e8672c':'#8f9aa3'}">${s.sp.toLocaleString(undefined,{minimumFractionDigits:2})}</td>
+    <td>${s.slack.toFixed(4)}</td>
+    <td>${bindingFlag? '<span class="tag" style="background:rgba(232,103,44,0.15);color:#e8672c">Yes</span>' : '<span class="tag" style="background:rgba(143,154,163,0.12);color:#8f9aa3">No</span>'}</td>
+  </tr>`;
+});
+</script>
+</body>
+</html>
