@@ -1,5 +1,0 @@
-scenario,status,total_cost,total_tons
-Baseline,Optimal,18910.271727,80.0
-High_Recycled,Optimal,18910.271727,80.0
-Tight_Impurity,Optimal,21291.534436,80.0
-Small_Heat,Optimal,11818.919622,50.0
