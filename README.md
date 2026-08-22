@@ -175,5 +175,4 @@ This project was built to demonstrate skills directly applicable to process/prod
 
 ## Author
 
-**Akash Yadav** — B.Tech Electronics & Communication Engineering, MANIT Bhopal (2027)
-Co-founder, Varunaastra (DPIIT-recognized startup) · AquaShakti ROV, DIR-V Grand Challenge 2025 Finalist
+**Ayush Verma** — B.Tech Mechanical Engineering, MANIT Bhopal (2027)
