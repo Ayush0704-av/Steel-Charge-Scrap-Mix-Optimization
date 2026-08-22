@@ -1,4 +1,3 @@
-
 # Steel Charge & Scrap Mix Optimization
 
 **Linear programming model to minimize scrap charge cost while meeting alloy composition, furnace capacity, and impurity constraints — built for core engineering / process optimization roles (GET tracks: Texas Instruments, Schneider Electric).**
